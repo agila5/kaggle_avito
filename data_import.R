@@ -8,4 +8,4 @@ avito_test = read_csv("test.csv.zip")
 
 
 ### Saving as .Rdata
-save(avito_train, file = "my_avito")
+save(avito_train, avito_test, file = "my_avito")
