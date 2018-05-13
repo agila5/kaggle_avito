@@ -1,0 +1,43 @@
+Competizione AVITO - Challenge
+
+Partecipanti:
+
+-Gila 
+-Rik
+-Mark 
+-G
+
+
+##################################################### 11-5
+primo meeting ufficiale del team:
+
+
+##################################################### 12-5
+G: CNN su subsample di immagini. (1000 train, 200ca test)
+--> risultati pessimi
+
+##################################################### 13-5
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################### CLOSE COMPETITION
