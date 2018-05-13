@@ -3,7 +3,7 @@ Competizione AVITO - Challenge
 Partecipanti:
 
 -Gila 
--Rik
+-Richi
 -Mark 
 -G
 
@@ -17,6 +17,16 @@ G: CNN su subsample di immagini. (1000 train, 200ca test)
 --> risultati pessimi
 
 ##################################################### 13-5
+Richi: 
+* richi_feateng = contiene tutta la feature engineering
+  che ho fatto
+* richi_tfidf = contiene le tfidf e preparazione dati
+  per xgboost
+* richi_modello_PROVA = prove del modello, nulla de che, 
+  xgboost però spacca
+* per il resto ho provato a vedere periods ma sto pensando
+  a che utilità può avere visto che è linkato con active, 
+  e active non ha il target
 
 
 
