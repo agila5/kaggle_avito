@@ -1,23 +1,19 @@
 library(tidyverse)
+library(lubridate)
 library(tidytext)
-library(tokenizers)
-library(stopwords)
-library(text2vec)
 library(tictoc)
-library(Matrix)
 
+
+
+###
+### AVITO DATA
+###
 
 # loading .Rdata
-tic()
 load("my_avito")
-
-
-### FEATURE ENGINEERING
-
 
 # merging train and test
 combi = bind_rows(avito_train, avito_test)
-
 
 # removing dots and commas and double spaces
 combi = combi %>% 
@@ -41,6 +37,7 @@ combi = combi %>%
   replace_na(list(image_top_1 = -1, 
                   price = -1))
 
+
 #' factor features
 
 combi = combi %>%
@@ -49,6 +46,7 @@ combi = combi %>%
          city = city %>% as.factor(),
          parent_category_name = parent_category_name %>% as.factor(),
          category_name = category_name %>% as.factor())
+
 
 #' feature testuali per titolo e description:
 #' count di lettere maiuscole
@@ -79,6 +77,20 @@ combi = combi %>%
                   descr_lat = 0))
 
 
+#' feature con date
+#' giorno del mese
+#' giorno della settimana
+#' mese dell'anno
+#' no settimana e anno che è tutto Marzo-Aprile 2017
+
+combi = combi %>%
+  mutate(act_mday = mday(activation_date),
+         act_wday = wday(activation_date),
+         act_month = month(activation_date))
+
+
+# Pulizia e saving finale
+
 # tolgo variabili problematiche (per ora)
 combi = combi %>%
   select(-item_id, -user_id,
@@ -95,5 +107,4 @@ richi_test_due = combi[testIds, ]
 
 # salvo richi_train per usarlo su caret
 save(richi_train_due, file = "feateng_train")
-toc()
 
