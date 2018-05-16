@@ -127,13 +127,13 @@ feateng_test = combi[testIds, ]
 
 
 # metto in sparse
-yTrain = feateng_train[, "deal_probability"]
+yTrain = Matrix(as.matrix(feateng_train[, "deal_probability"]), sparse = T)
 XTrain = sparse.model.matrix(deal_probability ~ 0 + ., feateng_train)
 
 XTest = sparse.model.matrix(~ 0 + ., feateng_test[, !colnames(feateng_test) %in% "deal_probability"])
 
 # salvo
 save(yTrain , XTrain, file = "sparse_train")
-#save(yTest, XTest, file = "sparse_test)
+save(yTest, XTest, file = "sparse_test")
 
 
