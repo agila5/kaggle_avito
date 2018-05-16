@@ -52,7 +52,6 @@ combi = combi %>%
 
 #' feature testuali per titolo e description:
 #' _len = numero parole
-#' _end = numero a capo
 #' _dig = numero digits
 #' _cap = freq lettere maiuscole
 #' _sym = freq simboli
@@ -129,10 +128,9 @@ feateng_test = combi[testIds, ]
 
 # metto in sparse
 yTrain = feateng_train[, "deal_probability"]
-XTrain = sparse.model.matrix(deal_probability ~ 1 + ., feateng_train)
+XTrain = sparse.model.matrix(deal_probability ~ 0 + ., feateng_train)
 
-yTest = feateng_test[, "deal_probability"]
-XTest = sparse.model.matrix(deal_probability ~ 1 + ., feateng_test)
+XTest = sparse.model.matrix(~ 0 + ., feateng_test[, !colnames(feateng_test) %in% "deal_probability"])
 
 # salvo
 save(yTrain , XTrain, file = "sparse_train")

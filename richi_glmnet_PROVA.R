@@ -1,15 +1,18 @@
 library(glmnet)
+library(caret)
 library(Matrix)
 library(tictoc)
 
 
+
 # richiamo dati
-load("tfidf_train")
+load("sparse_train")
 
 
-# prendo vettore y e matrice X
-yTrain = richi_train[, "deal_probability"]
-XTrain = richi_train[, !colnames(richi_train) %in% c("deal_probability", "act_march")]
+# standardizzo con caret
+stdData = preProcess(Xtrain, method = c("center", "scale"))
+XTrainStd = predict(stdData, XTrain)
+#XTestStd = predict(stdData, XTest)
 
 
 # glmnet
