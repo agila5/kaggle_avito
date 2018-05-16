@@ -1,4 +1,5 @@
 library(tidyverse)
+library(lubridate)
 library(tidytext)
 library(tokenizers)
 library(stopwords)
@@ -8,9 +9,7 @@ library(Matrix)
 
 
 # loading .Rdata
-tic()
 load("my_avito")
-toc()
 
 
 
@@ -33,9 +32,11 @@ combi = combi %>%
 #' presenza di descrizione
 #' presenza di param1 - param3
 #' presenza di immagine
+#' trasformo price in log(1+price)
 
 combi = combi %>%
-  mutate(no_img = image %>% is.na() %>% as.integer(),
+  mutate(price = log1p(price),
+         no_img = image %>% is.na() %>% as.integer(),
          no_descr = description %>% is.na() %>% as.integer(),
          no_p1 = param_1 %>% is.na() %>% as.integer(), 
          no_p2 = param_2 %>% is.na() %>% as.integer(), 
@@ -48,9 +49,10 @@ combi = combi %>%
 combi = combi %>%
   mutate(user_type = user_type %>% as.factor() %>% as.integer(),
          region = region %>% as.factor() %>% as.integer(),
-         city = city %>% as.factor() %>% as.integer(),
+         city = city %>% as.factor() %>% fct_lump(prop = .005) %>% as.integer(),
          parent_category_name = parent_category_name %>% as.factor() %>% as.integer(),
-         category_name = category_name %>% as.factor() %>% as.integer())
+         category_name = category_name %>% as.factor() %>% as.integer(),
+         user_id = user_id %>% as.factor() %>% fct_lump(prop = .0002) %>% as.integer())
 
 #' feature testuali per titolo e description:
 #' count di lettere maiuscole
@@ -80,6 +82,17 @@ combi = combi %>%
                   descr_num = 0,
                   descr_lat = 0))
 
+
+#' feature con date
+#' giorno del mese
+#' giorno della settimana
+#' dummy per Marzo
+#' no settimana e anno che è tutto Marzo-Aprile 2017
+
+combi = combi %>%
+  mutate(act_mday = mday(activation_date),
+         act_wday = wday(activation_date),
+         act_march = as.integer(month(activation_date) == 3)) # ad Aprile ci sono solo 9 vendite, togliere
 
 
 
@@ -119,7 +132,7 @@ rm(combi_token, vocab, tfidf_temp) #remove objects
 
 # tolgo variabili problematiche (per ora)
 combi = combi %>%
-  select(-item_id, -user_id,
+  select(-item_id,
          -title, -description, -text,
          -param_1, -param_2, -param_3,
          -image, -activation_date)
@@ -137,5 +150,4 @@ richi_test = combi_Matrix[testIds, ]
 
 # salvo richi_train per usarlo su caret - attenti che è dgCMatrix!
 save(richi_train, file = "tfidf_train")
-
 

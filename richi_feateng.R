@@ -1,6 +1,6 @@
 library(tidyverse)
 library(lubridate)
-library(tidytext)
+library(Matrix)
 library(tictoc)
 
 
@@ -27,48 +27,51 @@ combi = combi %>%
 #' presenza di descrizione
 #' presenza di param1 - param3
 #' presenza di immagine
+#' trasformo price in log(1+price)
 
 combi = combi %>%
-  mutate(no_img = image %>% is.na() %>% as.integer(),
+  mutate(price = log1p(price),
+         no_img = image %>% is.na() %>% as.integer(),
          no_descr = description %>% is.na() %>% as.integer(),
          no_p1 = param_1 %>% is.na() %>% as.integer(), 
          no_p2 = param_2 %>% is.na() %>% as.integer(), 
          no_p3 = param_3 %>% is.na() %>% as.integer()) %>%
-  replace_na(list(image_top_1 = -1, 
+  replace_na(list(image_top_1 = -1, # replace momentanei, copiati da kaggle
                   price = -1))
 
 
 #' factor features
 
 combi = combi %>%
-  mutate(user_type = user_type %>% as.factor(),
-         region = region %>% as.factor(),
-         city = city %>% as.factor(),
-         parent_category_name = parent_category_name %>% as.factor(),
-         category_name = category_name %>% as.factor())
+  mutate(user_type = as.factor(user_type),
+         region = as.factor(region),
+         city = as.factor(city),
+         parent_category_name = as.factor(parent_category_name),
+         category_name = as.factor(category_name))
 
 
 #' feature testuali per titolo e description:
-#' count di lettere maiuscole
-#' count di simboli
-#' count di digits
-#' lunghezza
-#' count di numeri
-#' count di lettere latine - di solito sono specifiche o marche
+#' _len = numero parole
+#' _end = numero a capo
+#' _dig = numero digits
+#' _cap = freq lettere maiuscole
+#' _sym = freq simboli
+#' _num = freq numeri
+#' _lat = freq lettere latine - segnalano marche/specifiche
 
 combi = combi %>%
-  mutate(title_len = str_length(title),
-         title_cap = str_count(title, "[A-Я]"),
-         title_sym = str_count(title, "[!?*#@\\\n-_%/()]"),
-         title_dig = nchar(gsub(" ", "", title)),
-         title_num = str_count(title, "[1-9]"),
-         title_lat = str_count(title, "[a-z]"),
-         descr_len = str_length(description),
-         descr_cap = str_count(description, "[A-Я]"),
-         descr_sym = str_count(description, "[!?*#@\\\n-_%/()]"),
-         descr_dig = nchar(gsub(" ", "", description)),
-         descr_num = str_count(description, "[1-9]"),
-         descr_lat = str_count(description, "[a-z]")) %>%
+  mutate(title_len = str_count(title, " "),
+         title_dig = str_length(gsub(" ", "", title)),
+         title_cap = str_count(title, "[A-Я]")/title_dig,
+         title_sym = str_count(title, "[!?*#@\\-_%/()]")/title_dig,
+         title_num = str_count(title, "[1-9]")/title_dig,
+         title_lat = str_count(title, "[a-z]")/title_dig,
+         descr_len = str_count(description, " "),
+         descr_dig = str_length(gsub(" ", "", description)),
+         descr_cap = str_count(description, "[A-Я]")/descr_dig,
+         descr_sym = str_count(description, "[!?*#@\\-_%/()]")/descr_dig,
+         descr_num = str_count(description, "[1-9]")/descr_dig,
+         descr_lat = str_count(description, "[a-z]")/descr_dig) %>%
   replace_na(list(descr_len = 0,
                   descr_cap = 0,
                   descr_sym = 0,
@@ -77,17 +80,34 @@ combi = combi %>%
                   descr_lat = 0))
 
 
-#' feature con date
-#' giorno del mese
+#' feature con date:
 #' giorno della settimana
-#' mese dell'anno
-#' no settimana e anno che è tutto Marzo-Aprile 2017
+#' dummy weekend
+#' basta così perché tutte le vendite sono a Marzo 2017
+#' e train e test sono splittati temporalmente
 
 combi = combi %>%
-  mutate(act_mday = mday(activation_date),
-         act_wday = wday(activation_date),
-         act_month = month(activation_date))
+  mutate(act_weekday = as.factor(wday(activation_date)),
+         act_weekend = as.integer(ifelse(act_weekday %in% c("6", "7"), 1, 0)))
 
+
+#' trasformazione param_n in factor
+
+combi = combi %>%
+  mutate(param_1 = fct_lump(as.factor(param_1), n = 30),
+         param_2 = fct_lump(as.factor(param_2), n = 30),
+         param_3 = fct_lump(as.factor(param_3), n = 30)) %>%
+  replace_na(list(param_1 = "Other",
+                  param_2 = "Other",
+                  param_3 = "Other"))
+
+
+
+
+
+
+
+########################################################
 
 # Pulizia e saving finale
 
@@ -95,16 +115,27 @@ combi = combi %>%
 combi = combi %>%
   select(-item_id, -user_id,
          -title, -description,
-         -param_1, -param_2, -param_3,
          -image, -activation_date)
 
 
 # ri-splitto train e test
 testIds = which(is.na(combi[, "deal_probability"]))
-richi_train_due = combi[-testIds, ]
-richi_test_due = combi[testIds, ]
-
+feateng_train = combi[-testIds, ]
+feateng_test = combi[testIds, ]
 
 # salvo richi_train per usarlo su caret
-save(richi_train_due, file = "feateng_train")
+#save(feateng_train, file = "feateng_caret")
+
+
+# metto in sparse
+yTrain = feateng_train[, "deal_probability"]
+XTrain = sparse.model.matrix(deal_probability ~ 1 + ., feateng_train)
+
+yTest = feateng_test[, "deal_probability"]
+XTest = sparse.model.matrix(deal_probability ~ 1 + ., feateng_test)
+
+# salvo
+save(yTrain , XTrain, file = "sparse_train")
+#save(yTest, XTest, file = "sparse_test)
+
 
