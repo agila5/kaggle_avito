@@ -2,17 +2,15 @@ library(xgboost)
 library(tictoc)
 
 
+
 # richiamo dati
-load("tfidf_train")
+load("sparse_train")
 
-
-# prendo vettore y e matrice X
-yTrain = richi_train[, "deal_probability"]
 
 # creo validation
-ids = as.vector(caret::createDataPartition(yTrain, p = 0.9, list = F))
-XTrain = xgb.DMatrix(data = richi_train[-ids, !colnames(richi_train) %in% "deal_probability"], label = yTrain[-ids])
-XValid = xgb.DMatrix(data = richi_train[ids, !colnames(richi_train) %in% "deal_probability"], label = yTrain[ids])
+ids = as.vector(caret::createDataPartition(yTrain[, 1], p = 0.9, list = F))
+XgbTrain = xgb.DMatrix(data = XTrain[ids, ], label = yTrain[ids, ])
+XgbValid = xgb.DMatrix(data = XTrain[-ids, ], label = yTrain[-ids, ])
 
 # xgboost!
 xgbTune = list(objective = "reg:logistic",
@@ -31,9 +29,9 @@ xgbTune = list(objective = "reg:logistic",
 
 tic()
 m_xgb = xgb.train(xgbTune, 
-                  XTrain, 
+                  XgbTrain, 
                   xgbTune$nrounds, 
-                  list(val = XValid), 
+                  list(val = XgbValid), 
                   print_every_n = 50, 
                   early_stopping_rounds = 50)
 toc()
