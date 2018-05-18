@@ -134,6 +134,6 @@ XTest = sparse.model.matrix(~ 0 + ., feateng_test[, !colnames(feateng_test) %in%
 
 # salvo
 save(yTrain , XTrain, file = "sparse_train")
-save(yTest, XTest, file = "sparse_test")
+save(XTest, file = "sparse_test")
 
 
