@@ -15,6 +15,11 @@ primo meeting ufficiale del team:
 ##################################################### 12-5
 G: CNN su subsample di immagini. (1000 train, 200ca test)
 --> risultati pessimi
+G: CNN su 80K immagini, testing su 8000
+--> 70% accuracy bene ma non benissimo
+
+G: Feature extraction: errori dopo 30 k di immagini 
+
 
 ##################################################### 13-5
 Richi: 
