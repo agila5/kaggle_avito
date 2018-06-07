@@ -9,12 +9,11 @@ library(tictoc)
 load("sparse_train")
 yTrain = as.matrix(cbind(1 - yTrain, yTrain))
 
-small = sample(1:nrow(XTrain), size = 2000)
+set.seed(39)
+small = sample(1:nrow(XTrain), size = 10000)
 XTrain = XTrain[small, ]
 yTrain = yTrain[small, ]
 
-# parallel stuff!
-#registerDoMC(cores = 3) # cores = detectCores() - 1
 
 
 
@@ -28,7 +27,7 @@ set.seed(123)
 K = 5
 folds = sample(1:K, size = nrow(XTrain), replace = T)
 
-lambdaSeq = exp(seq(-5, 2, length.out = 1000))
+lambdaSeq = exp(seq(0, -8, length.out = 1000))
 cvMSEs = matrix(0, nrow = K, ncol = length(lambdaSeq))
 
 for(k in 1:K) {
@@ -43,7 +42,7 @@ for(k in 1:K) {
                      family = "binomial")
   
   cvPreds = exp(predict.glmnet(lassoFold, XTrain[folds == k, ]))/(1 + exp(predict.glmnet(lassoFold, XTrain[folds == k, ])))
-  cvMSEs[k, ] = apply(cvPreds, 2, function(preds) mean((preds - yTrain[folds == k, 2])^2))
+  cvMSEs[k, ] = apply(cvPreds, 2, function(preds) sqrt(mean((preds - yTrain[folds == k, 2])^2)))
   
   print(k)
   toc()
@@ -55,11 +54,18 @@ plot(log(lambdaSeq), lambdaMSEs, type = "l", lwd = 1.5)
 abline(v = log(lambdaSeq[which.min(lambdaMSEs)]), col = "red", lty = 3, lwd = 1.5)
 
 plot(density(yTrain[folds == K, 2], from = 0, to = 1), lwd = 1.5)
-lines(density(cvPreds[, length(lambdaSeq)], from = 0, to = 1), col = "red", lwd = 1.5)
+lines(density(cvPreds[, which.min(lambdaMSEs)], from = 0, to = 1), col = "red", lwd = 1.5)
+
+
+
 
 # glmnet native
 
+# parallel stuff!
+registerDoMC(cores = 5) # cores = detectCores() - 1
+
 set.seed(123)
+tic()
 lassoCross = cv.glmnet(x = XTrain,
                        y = yTrain,
                        nfolds = 5,
@@ -69,7 +75,8 @@ lassoCross = cv.glmnet(x = XTrain,
                        intercept = F,
                        family = "binomial",
                        type.measure = "mse",
-                       parallel = F)
+                       parallel = T)
+toc()
 
 plot(lassoCross)
 
