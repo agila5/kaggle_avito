@@ -6,7 +6,7 @@ library(tictoc)
 
 
 # richiamo dati
-load("sparse_train")
+load("sparse_train_due")
 yTrain = as.matrix(cbind(1 - yTrain, yTrain))
 
 set.seed(39)

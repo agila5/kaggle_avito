@@ -4,99 +4,18 @@ library(tidytext)
 library(tokenizers)
 library(stopwords)
 library(text2vec)
-library(tictoc)
 library(Matrix)
-
-
-# loading .Rdata
-load("my_avito")
+library(tictoc)
 
 
 
-### FEATURE ENGINEERING
-
-
-# merging train and test
-combi = bind_rows(avito_train, avito_test)
-
-
-# removing dots and commas and double spaces
-combi = combi %>% 
-  mutate(title = gsub("[.,]", " ", title),
-         title = gsub("\\s+", " ", title),
-         description = gsub("[.,]", " ", description),
-         description = gsub("\\s+", " ", description))
-
-
-#' dummy features:
-#' presenza di descrizione
-#' presenza di param1 - param3
-#' presenza di immagine
-#' trasformo price in log(1+price)
-
-combi = combi %>%
-  mutate(price = log1p(price),
-         no_img = image %>% is.na() %>% as.integer(),
-         no_descr = description %>% is.na() %>% as.integer(),
-         no_p1 = param_1 %>% is.na() %>% as.integer(), 
-         no_p2 = param_2 %>% is.na() %>% as.integer(), 
-         no_p3 = param_3 %>% is.na() %>% as.integer()) %>%
-  replace_na(list(image_top_1 = -1, 
-                  price = -1))
-
-#' factor features
-
-combi = combi %>%
-  mutate(user_type = user_type %>% as.factor() %>% as.integer(),
-         region = region %>% as.factor() %>% as.integer(),
-         city = city %>% as.factor() %>% fct_lump(prop = .005) %>% as.integer(),
-         parent_category_name = parent_category_name %>% as.factor() %>% as.integer(),
-         category_name = category_name %>% as.factor() %>% as.integer(),
-         user_id = user_id %>% as.factor() %>% fct_lump(prop = .0002) %>% as.integer())
-
-#' feature testuali per titolo e description:
-#' count di lettere maiuscole
-#' count di simboli
-#' count di digits
-#' lunghezza
-#' count di numeri
-#' count di lettere latine - di solito sono specifiche o marche
-
-combi = combi %>%
-  mutate(title_len = str_length(title),
-         title_cap = str_count(title, "[A-Я]"),
-         title_sym = str_count(title, "[!?*#@\\\n-_%/()]"),
-         title_dig = nchar(gsub(" ", "", title)),
-         title_num = str_count(title, "[1-9]"),
-         title_lat = str_count(title, "[a-z]"),
-         descr_len = str_length(description),
-         descr_cap = str_count(description, "[A-Я]"),
-         descr_sym = str_count(description, "[!?*#@\\\n-_%/()]"),
-         descr_dig = nchar(gsub(" ", "", description)),
-         descr_num = str_count(description, "[1-9]"),
-         descr_lat = str_count(description, "[a-z]")) %>%
-  replace_na(list(descr_len = 0,
-                  descr_cap = 0,
-                  descr_sym = 0,
-                  descr_dig = 0,
-                  descr_num = 0,
-                  descr_lat = 0))
-
-
-#' feature con date
-#' giorno del mese
-#' giorno della settimana
-#' dummy per Marzo
-#' no settimana e anno che è tutto Marzo-Aprile 2017
-
-combi = combi %>%
-  mutate(act_mday = mday(activation_date),
-         act_wday = wday(activation_date),
-         act_march = as.integer(month(activation_date) == 3)) # ad Aprile ci sono solo 9 vendite, togliere
+# carico il combi
+load("feateng_combi")
 
 
 
 ### TF IDF features!!!
+
 
 # pasting title and description into "text"
 combi = combi %>%
@@ -105,7 +24,9 @@ combi = combi %>%
 # removing symbols and multiple spaces
 combi = combi %>%
   mutate(text = gsub("[!?*#@\\\n-_%/()]", " ", text),
-         text = gsub("\\s+", " ", text)) #multiple white spaces
+         text = gsub("\\s+", " ", text)) # multiple white spaces
+
+
 
 # creating token
 combi_token = combi %$% text %>%
@@ -130,24 +51,30 @@ tfidf = create_dtm(combi_token, vocab) %>%
 rm(combi_token, vocab, tfidf_temp) #remove objects
 
 
+
 # tolgo variabili problematiche (per ora)
 combi = combi %>%
-  select(-item_id,
-         -title, -description, -text,
-         -param_1, -param_2, -param_3,
-         -image, -activation_date)
+  select(-title, -description, -text)
 
-# adding tf idf features
-combi_sparse = Matrix(as.matrix(combi), sparse = T)
-combi_Matrix = cbind(combi_sparse, tfidf)
+# splitto train e test
+testIds = which(is.na(combi[, "deal_probability"]))
+notextTrain = combi[-testIds, ]
+notextTest = combi[testIds, ]
 
+# sparsification
+yTrain = Matrix(as.matrix(notextTrain[, "deal_probability"]), sparse = T)
+XTrain = sparse.model.matrix(deal_probability ~ 0 + ., notextTrain)
 
-# ri-splitto train e test
-testIds = which(is.na(combi_Matrix[, "deal_probability"]))
-richi_train = combi_Matrix[-testIds, ]
-richi_test = combi_Matrix[testIds, ]
+XTest = sparse.model.matrix(~ 0 + ., notextTest[, !colnames(notextTest) %in% "deal_probability"])
+
+# adding tfidf features
+XTrain = cbind(XTrain, tfidf[-testIds, ])
+XTest = cbind(XTest, tfidf[testIds, ])
+
 
 
 # salvo richi_train per usarlo su caret - attenti che è dgCMatrix!
-save(richi_train, file = "tfidf_train")
+save(yTrain , XTrain, file = "tfidf_train")
+save(XTest, file = "tfidf_test")
+
 
